@@ -226,6 +226,28 @@ revoke execute on function public.hm_transition_iap(uuid,text,uuid) from public,
 grant execute on function public.hm_create_iap(text,text,text,text,date,time,int) to authenticated;
 grant execute on function public.hm_transition_iap(uuid,text,uuid) to authenticated;
 
+-- Search eligible Expert speakers without exposing all qualifications to every organiser.
+create or replace function private.hm_find_experts(p_topic text,p_city text,p_language text)
+returns table(user_id uuid,display_name text)
+language sql stable security definer set search_path = ''
+as $
+ select s.user_id,coalesce(p.display_name,'Approved Expert')
+ from public.hm_expert_scopes s
+ left join public.hm_profiles p on p.user_id=s.user_id
+ where private.hm_has_role((select auth.uid()),'money_friend')
+ and s.topic=p_topic and s.city=p_city and s.language=p_language and s.status='approved'
+ and private.hm_has_role(s.user_id,'expert')
+ order by display_name limit 20
+$;
+revoke all on function private.hm_find_experts(text,text,text) from public,anon;
+grant execute on function private.hm_find_experts(text,text,text) to authenticated;
+create or replace function public.hm_find_experts(p_topic text,p_city text,p_language text)
+returns table(user_id uuid,display_name text)
+language sql stable security invoker set search_path = ''
+as $ select * from private.hm_find_experts(p_topic,p_city,p_language) $;
+revoke execute on function public.hm_find_experts(text,text,text) from public,anon;
+grant execute on function public.hm_find_experts(text,text,text) to authenticated;
+
 -- New users get no elevated role automatically. A trusted administrator must
 -- approve role grants / Expert topic scopes via a controlled admin process.
 -- Never put service_role/secret keys in frontend code.
