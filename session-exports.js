@@ -26,7 +26,7 @@ addText(slide,limit(step.activity,280),.78,5.48,11.56,.94,{fontSize:17,color:col
 addText(slide,step.minute+' MIN  ·  '+step.duration+' MINUTES',.75,6.85,5,.32,{fontSize:11,bold:true,color:colors.muted});
 addText(slide,'Hello Money · Community-first learning  •  '+index+'/'+count,7,6.85,5.6,.32,{fontSize:10,color:colors.muted,align:'right'});
 return slide}
-async function downloadPptx(){const x=getDraft();if(!x){status('Prepare a session draft first.');return}if(working)return;setBusy(true);status('Preparing your PowerPoint draft…');
+async function downloadPptx(asBlob=false){const x=getDraft();if(!x){status('Prepare a session draft first.');return}if(working)return;setBusy(true);status('Preparing your PowerPoint draft…');
 try{await load(pptxSrc,()=>typeof window.pptxgen==='function');const pptx=new window.pptxgen();pptx.layout='LAYOUT_WIDE';pptx.author='Hello Money · Session Studio';pptx.subject='Financial literacy session · educational draft for review';pptx.title=x.englishTitle+' · Hello Money Session Studio · DRAFT';
 pptx.lang=x.language==='Malayalam'?'ml-IN':'en-IN';pptx.theme={headFontFace:font(),bodyFontFace:font(),lang:'ml-IN'};
 let slide=pptx.addSlide();slide.background={color:colors.pale};slide.addShape(pptx.ShapeType.rect,{x:0,y:0,w:.18,h:7.5,fill:{color:colors.green},line:{color:colors.green}});
@@ -39,8 +39,8 @@ slide.addShape(pptx.ShapeType.rect,{x:.84,y:5.94,w:11.5,h:.64,line:{color:'E9DAB
 addText(slide,'DRAFT — NOT APPROVED FOR PUBLIC DELIVERY',1.04,6.05,10.8,.38,{fontSize:14,bold:true,color:'895C28'});
 addText(slide,'A small conversation. One useful money idea.',.88,6.91,9,.27,{fontSize:11,color:colors.muted});
 x.steps.forEach((step,i)=>deckSlide(pptx,step,i+2,x.steps.length+1));
-await pptx.writeFile({fileName:filename(x,'pptx'),compression:true});status('PowerPoint downloaded. Review content and Malayalam typography before presenting.')}
-catch(err){status('PowerPoint could not be exported: '+err.message)}
+if(asBlob)return await pptx.write({outputType:'blob',compression:true});await pptx.writeFile({fileName:filename(x,'pptx'),compression:true});status('PowerPoint downloaded. Review content and Malayalam typography before presenting.')}
+catch(err){status('PowerPoint could not be exported: '+err.message);if(asBlob)throw err}
 finally{setBusy(false)}}
 function el(tag,text,style=''){const x=document.createElement(tag);if(text!==undefined)x.textContent=String(text);if(style)x.style.cssText=style;return x}
 function buildPdf(x){const sheet=el('article');sheet.setAttribute('aria-label','Hello Money one-page draft learning takeaway');
@@ -64,11 +64,11 @@ bottom.append(el('span','Hello Money  ·  Learn together. Pass it on.','font-siz
 bottom.append(el('span','Educational example only · Not financial advice','font-size:10px;color:#66766a;text-align:right;'));
 sheet.append(bottom);
 return sheet}
-async function downloadPdf(){const x=getDraft();if(!x){status('Prepare a session draft first.');return}if(working)return;setBusy(true);status('Preparing the one-page PDF…');let sheet=null;
+async function downloadPdf(asBlob=false){const x=getDraft();if(!x){status('Prepare a session draft first.');return}if(working)return;setBusy(true);status('Preparing the one-page PDF…');let sheet=null;
 try{await load(pdfSrc,()=>typeof window.html2pdf==='function');sheet=buildPdf(x);sheet.style.position='fixed';sheet.style.left='0';sheet.style.top='0';sheet.style.zIndex='-10';sheet.style.pointerEvents='none';document.body.append(sheet);
 if(document.fonts?.ready)await document.fonts.ready;
-await window.html2pdf().set({margin:0,filename:filename(x,'pdf'),image:{type:'jpeg',quality:.96},html2canvas:{scale:1.8,useCORS:true,backgroundColor:'#FFFFFF',scrollY:0},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['avoid-all']}}).from(sheet).save();status('One-page PDF downloaded. Check Malayalam text and layout before printing or sharing.')}
-catch(err){status('PDF export failed: '+err.message+'. You can still print the draft using the existing option.')}
+const result=await window.html2pdf().set({margin:0,filename:filename(x,'pdf'),image:{type:'jpeg',quality:.96},html2canvas:{scale:1.8,useCORS:true,backgroundColor:'#FFFFFF',scrollY:0},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['avoid-all']}}) .from(sheet)[asBlob?'outputPdf':'save'](asBlob?'blob':undefined);if(asBlob)return result;status('One-page PDF downloaded. Check Malayalam text and layout before printing or sharing.')}
+catch(err){status('PDF export failed: '+err.message+'. You can still print the draft using the existing option.');if(asBlob)throw err}
 finally{if(sheet)sheet.remove();setBusy(false)}}
 const target=$('studioReviewActions');if(target){const box=document.createElement('div');box.id='studioDownloads';box.className='studio-panel';box.style.cssText='padding:16px;margin:17px 0;background:#f5faf3;border:1px solid #d8e7d5';
 box.append(el('h3','Your session materials','font-size:20px;margin:0 0 6px;'));
